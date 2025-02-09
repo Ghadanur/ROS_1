@@ -1,0 +1,8 @@
+<?xml version="1.0"?>
+<launch>
+  <param name="robot_description" textfile="$(find mobile_robot)/urdf/rover.urdf"/>
+  <arg name="rviz_config_file" default="$(find mobile_robot)/config/robot.rviz"/>
+  <node name="robot_state_publisher" pkg="robot_state_publisher" type="robot_state_publisher"/>
+  <node name="joint_state_publisher" pkg="joint_state_publisher" type="joint_state_publisher"/>
+  <node name="rviz" pkg="rviz" type="rviz" args="-d $(arg rviz_config_file)"/>
+</launch> 
