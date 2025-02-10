@@ -1,0 +1,159 @@
+<?xml version="1.0"?>
+<robot name="rover" xmlns:xacro="http://www.ros.org/wiki/xacro">
+
+    <!-- Define Parameters -->
+    <xacro:property name="wheel_radius" value="0.03"/>
+    <xacro:property name="wheel_length" value="0.02"/>
+    <xacro:property name="rim_length" value="0.005"/>
+    <xacro:property name="core_length" value="0.01"/>
+    <xacro:property name="core_radius" value="0.025"/>
+    <xacro:property name="body_size" value="0.23 0.15 0.10"/>
+    <xacro:property name="wheel_separation" value="0.15"/>
+    <xacro:property name="wheel_offset_x" value="0.06"/>
+    <xacro:property name="wheel_offset_y" value="0.09"/>
+    <xacro:property name="wheel_offset_z" value="-0.055"/>
+
+    <!-- Define Materials -->
+    <material name="metallic_gray">
+        <color rgba="0.3 0.3 0.3 1.0"/>
+    </material>
+    <material name="chrome_silver">
+        <color rgba="0.8 0.8 0.9 1.0"/>
+    </material>
+    <material name="holo_purple">
+        <color rgba="0.6 0.2 0.8 1.0"/>
+    </material>
+    <material name="tire_tread">
+        <color rgba="0.1 0.1 0.1 1.0"/>
+    </material>
+
+    <!-- Base Link (Main Body) -->
+    <link name="base_link">
+        <visual>
+          <gazebo reference="base_link">
+          <mu1>0.2</mu1>
+          <mu2>0.2</mu2>
+        <material>Gazebo/Purple</material>
+          </gazebo>
+          
+            <geometry>
+                <box size="${body_size}"/>
+            </geometry>
+            <material name="holo_purple"/>
+            
+        </visual>
+        <collision>
+            <geometry>
+                <box size="${body_size}"/>
+            </geometry>
+        </collision>
+    </link>
+
+    <!-- Dummy Link to hold inertia -->
+    <link name="base_dummy">
+        <inertial>
+            <mass value="2.0"/>
+            <origin xyz="0 0 0"/>
+            <inertia ixx="0.02" iyy="0.02" izz="0.02" ixy="0" ixz="0" iyz="0"/>
+        </inertial>
+    </link>
+
+    <joint name="base_dummy_joint" type="fixed">
+        <parent link="base_link"/>
+        <child link="base_dummy"/>
+        <origin xyz="0 0 0"/>
+    </joint>
+
+    <!-- Wheel Macro -->
+    <xacro:macro name="wheel" params="wheel_name">
+        <link name="${wheel_name}">
+            <visual>
+                <geometry>
+                    <cylinder length="${wheel_length}" radius="${wheel_radius}"/>
+                </geometry>
+                <material name="tire_tread"/>
+            </visual>
+
+            <!-- Collision Geometry -->
+            <collision>
+                <geometry>
+                    <cylinder length="${wheel_length}" radius="${wheel_radius}"/>
+                </geometry>
+            </collision>
+
+            <visual>
+                <gazebo reference="${wheel_name}">
+                   <mu1>0.2</mu1>
+                   <mu2>0.2</mu2>
+                   <material>Gazebo/Black</material>
+                </gazebo>
+                <geometry>
+                    <cylinder length="${rim_length}" radius="${wheel_radius}"/>
+                </geometry>
+                <material name="chrome_silver"/>
+            </visual>
+            <visual>
+                <geometry>
+                    <cylinder length="${core_length}" radius="${core_radius}"/>
+                </geometry>
+                <material name="metallic_gray"/>
+            </visual>
+
+            <!-- Inertial for Physics -->
+            <inertial>
+                <mass value="0.5"/>  <!-- Adjust mass as needed -->
+                <origin xyz="0 0 0"/>
+                <inertia ixx="0.01" iyy="0.01" izz="0.01" ixy="0" ixz="0" iyz="0"/>
+            </inertial>
+        </link>
+    </xacro:macro>
+
+    <!-- Generate Wheels -->
+    <xacro:wheel wheel_name="front_left_wheel"/>
+    <xacro:wheel wheel_name="front_right_wheel"/>
+    <xacro:wheel wheel_name="rear_left_wheel"/>
+    <xacro:wheel wheel_name="rear_right_wheel"/>
+
+    <!-- Wheel Joint Macro -->
+    <xacro:macro name="wheel_joint" params="joint_name parent_link child_link x_offset y_offset">
+        <joint name="${joint_name}" type="continuous">
+            <parent link="${parent_link}"/>
+            <child link="${child_link}"/>
+            <origin xyz="${x_offset} ${y_offset} ${wheel_offset_z}" rpy="${pi/2} 0 0"/>
+            <axis xyz="0 0 1"/>
+        </joint>
+    </xacro:macro>
+
+    <!-- Generate Joints -->
+    <xacro:wheel_joint joint_name="front_left_wheel_joint" parent_link="base_dummy" child_link="front_left_wheel" x_offset="-${wheel_offset_x}" y_offset="${wheel_offset_y}"/>
+    <xacro:wheel_joint joint_name="front_right_wheel_joint" parent_link="base_dummy" child_link="front_right_wheel" x_offset="${wheel_offset_x}" y_offset="${wheel_offset_y}"/>
+    <xacro:wheel_joint joint_name="rear_left_wheel_joint" parent_link="base_dummy" child_link="rear_left_wheel" x_offset="-${wheel_offset_x}" y_offset="-${wheel_offset_y}"/>
+    <xacro:wheel_joint joint_name="rear_right_wheel_joint" parent_link="base_dummy" child_link="rear_right_wheel" x_offset="${wheel_offset_x}" y_offset="-${wheel_offset_y}"/>
+  
+   <gazebo>
+      <plugin name="skid_steer_drive_controller" filename="libgazebo_ros_skid_steer_drive.so">
+       <!--alwaysOn>false</alwaysOn-->
+       <!--legacyMode>false</legacyMode-->
+       <updateRate>100.0</updateRate>
+       <!-- Define Left and Right Wheels -->
+       <leftFrontJoint>front_left_wheel_joint</leftFrontJoint>
+       <leftRearJoint>rear_left_wheel_joint</leftRearJoint>
+       <rightFrontJoint>front_right_wheel_joint</rightFrontJoint>
+       <rightRearJoint>rear_right_wheel_joint</rightRearJoint>
+       <wheelSeparation>${wheel_separation}</wheelSeparation>
+       <wheelDiameter>${wheel_radius * 2}</wheelDiameter>
+       <torque>1000</torque>
+       <commandTopic>/rover/base_controller/cmd_vel</commandTopic>
+       <odometryTopic>/rover/base_controller/odom</odometryTopic>
+       <odometryFrame>odom</odometryFrame>
+       <robotBaseFrame>base_dummy</robotBaseFrame>
+       <publishWheelTF>true</publishWheelTF>
+       <publishOdom>true</publishOdom>
+       <publishWheelJointState>true</publishWheelJointState>
+       <covariance_x>0.0001</covariance_x>
+       <covariance_y>0.0001</covariance_y>       
+       <covariance_yaw>0.01</covariance_yaw>       
+      </plugin>
+    </gazebo>        
+</robot>
+
