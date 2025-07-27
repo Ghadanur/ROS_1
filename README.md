@@ -1,2 +1,2 @@
-# Rover in ROS_1
-rover_urdf
+# Rover in ROS
+Implementation of rover in Ros Noetic.
